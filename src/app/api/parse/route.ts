@@ -2,18 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { extractTextFromPDF, truncateText } from '@/lib/pdf-parser';
-import { parseResumeWithClaude } from '@/lib/claude-client';
+import { parseResumeWithCustomApi } from '@/lib/api-client';
 import { saveResume } from '@/lib/db';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'public/uploads');
 
 export async function POST(request: NextRequest) {
   try {
-    const { resumeId, fileName } = await request.json();
+    const { resumeId, fileName, apiConfig } = await request.json();
 
     if (!resumeId || !fileName) {
       return NextResponse.json(
         { error: 'Missing resumeId or fileName' },
+        { status: 400 }
+      );
+    }
+
+    // 检查是否提供了 API 配置
+    if (!apiConfig || !apiConfig.apiUrl || !apiConfig.apiKey) {
+      return NextResponse.json(
+        { error: 'Missing API configuration. Please configure your API first.' },
         { status: 400 }
       );
     }
@@ -36,16 +44,16 @@ export async function POST(request: NextRequest) {
 
     if (!rawText || rawText.length < 50) {
       return NextResponse.json(
-        { error: 'Could not extract meaningful text from PDF' },
+        { error: '无法从 PDF 中提取文本内容' },
         { status: 400 }
       );
     }
 
-    // Truncate text to avoid exceeding Claude API limits
+    // Truncate text to avoid exceeding API limits
     const truncatedText = truncateText(rawText);
 
-    // Parse resume using Claude API
-    const parsedResult = await parseResumeWithClaude(truncatedText, fileName);
+    // Parse resume using user's custom API
+    const parsedResult = await parseResumeWithCustomApi(truncatedText, fileName, apiConfig, resumeId);
 
     // Save resume to database
     saveResume(parsedResult.resume);
@@ -58,7 +66,6 @@ export async function POST(request: NextRequest) {
       resumeId: parsedResult.resume.id,
       resume: parsedResult.resume,
       confidence: parsedResult.confidence,
-      warnings: parsedResult.warnings,
     });
   } catch (error) {
     console.error('Parse error:', error);
@@ -67,7 +74,7 @@ export async function POST(request: NextRequest) {
         error:
           error instanceof Error
             ? error.message
-            : 'Failed to parse resume. Please try with a different PDF.',
+            : '解析简历失败，请检查 API 配置后重试。',
       },
       { status: 500 }
     );

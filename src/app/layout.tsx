@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Resume Showcase - AI-Powered Resume Parser",
-  description: "Upload your PDF resume and get a beautiful online portfolio instantly",
+  title: "简历展示生成器 - AI 智能解析简历",
+  description: "上传 PDF 简历，AI 自动解析生成美观的在线展示页",
 };
 
 export default function RootLayout({
@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="zh">
       <body className={`${geist.variable} ${geistMono.variable} antialiased`}>
         {children}
       </body>
