@@ -9,7 +9,6 @@ interface ResumeDisplayProps {
 }
 
 export default function ResumeDisplay({ resume }: ResumeDisplayProps) {
-  const [showShareModal, setShowShareModal] = useState(false);
 
   const resumeUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/resume/${resume.id}`;
 
@@ -202,19 +201,10 @@ export default function ResumeDisplay({ resume }: ResumeDisplayProps) {
           </div>
 
           {/* Footer Actions */}
-          <div className="px-8 md:px-12 py-6 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={() => setShowShareModal(true)}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
-              分享简历
-            </button>
+          <div className="px-8 md:px-12 py-6 bg-gray-50 border-t border-gray-100 flex justify-center">
             <button
               onClick={copyToClipboard}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-gray-700 font-semibold rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -229,40 +219,6 @@ export default function ResumeDisplay({ resume }: ResumeDisplayProps) {
           简历展示生成器 · AI-Powered Resume Parser
         </p>
       </div>
-
-      {/* Share Modal */}
-      {showShareModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowShareModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full transform transition-all" onClick={e => e.stopPropagation()}>
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900">分享你的简历</h2>
-              <p className="text-gray-500 mt-2">复制链接发送给招聘方</p>
-            </div>
-
-            <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 rounded-xl mb-6">
-              <p className="text-sm text-gray-500 mb-2">简历链接</p>
-              <p className="text-blue-600 font-medium break-all text-sm">{resumeUrl}</p>
-            </div>
-
-            <div className="flex gap-3">
-              <button onClick={copyToClipboard} className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all">
-                复制链接
-              </button>
-              <button
-                onClick={() => setShowShareModal(false)}
-                className="px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors"
-              >
-                关闭
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

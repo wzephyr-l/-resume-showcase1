@@ -85,65 +85,17 @@ export default function ApiConfig({ onConfigComplete }: ApiConfigProps) {
   const [apiUrl, setApiUrl] = useState(API_TEMPLATES[0].url);
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState(API_TEMPLATES[0].modelParam);
-  const [rememberKey, setRememberKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
-
-  // 加载保存的配置
-  useEffect(() => {
-    const saved = localStorage.getItem('apiConfig');
-    const savedTemplate = localStorage.getItem('apiTemplate');
-    const savedRemember = localStorage.getItem('apiKeyRemember');
-
-    if (savedRemember === 'true' && savedTemplate) {
-      const templateIndex = parseInt(savedTemplate);
-      if (templateIndex >= 0 && templateIndex < API_TEMPLATES.length) {
-        setSelectedTemplate(templateIndex);
-        setApiUrl(API_TEMPLATES[templateIndex].url);
-        setModel(API_TEMPLATES[templateIndex].modelParam);
-
-        const savedKey = localStorage.getItem('apiKeyValue');
-        if (savedKey) {
-          setApiKey(savedKey);
-          setRememberKey(true);
-        }
-      }
-    }
-
-    if (saved) {
-      try {
-        const config = JSON.parse(saved);
-        setApiUrl(config.apiUrl || API_TEMPLATES[0].url);
-        setModel(config.model || API_TEMPLATES[0].modelParam);
-      } catch (e) {
-        // 忽略解析错误
-      }
-    }
-  }, []);
 
   // 切换模板时清空密钥
   const handleTemplateChange = (index: number) => {
     setSelectedTemplate(index);
     setApiUrl(API_TEMPLATES[index].url);
     setModel(API_TEMPLATES[index].modelParam);
-    if (!rememberKey) {
-      setApiKey('');
-    }
+    setApiKey('');
     setTestResult(null);
-  };
-
-  const handleRememberChange = (checked: boolean) => {
-    setRememberKey(checked);
-    if (checked) {
-      localStorage.setItem('apiKeyValue', apiKey);
-      localStorage.setItem('apiTemplate', selectedTemplate.toString());
-      localStorage.setItem('apiKeyRemember', 'true');
-    } else {
-      localStorage.removeItem('apiKeyValue');
-      localStorage.removeItem('apiTemplate');
-      localStorage.removeItem('apiKeyRemember');
-    }
   };
 
   const handleTest = async () => {
@@ -187,14 +139,7 @@ export default function ApiConfig({ onConfigComplete }: ApiConfigProps) {
       return;
     }
 
-    // 保存配置
-    localStorage.setItem('apiConfig', JSON.stringify({ apiUrl, model }));
-    if (rememberKey) {
-      localStorage.setItem('apiKeyValue', apiKey);
-      localStorage.setItem('apiTemplate', selectedTemplate.toString());
-      localStorage.setItem('apiKeyRemember', 'true');
-    }
-
+    // 不保存密钥到本地，保证安全
     onConfigComplete({ apiUrl, apiKey, model });
   };
 
@@ -279,15 +224,6 @@ export default function ApiConfig({ onConfigComplete }: ApiConfigProps) {
               )}
             </button>
           </div>
-          <label className="flex items-center gap-2 mt-3">
-            <input
-              type="checkbox"
-              checked={rememberKey}
-              onChange={(e) => handleRememberChange(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-700">记住此密钥，下次自动填充</span>
-          </label>
         </div>
 
         {/* 模型选择 */}
