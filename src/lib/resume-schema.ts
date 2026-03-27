@@ -33,6 +33,13 @@ export interface Resume {
     graduationYear: string;
   }>;
 
+  // 项目经验
+  projects?: Array<{
+    name: string;
+    description: string;
+    technologies: string[];
+  }>;
+
   // 原始数据
   rawText: string; // 原始 PDF 文本
   parsedData: Record<string, unknown>; // Claude 解析的原始数据

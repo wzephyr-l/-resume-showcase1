@@ -69,13 +69,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Parse error:', error);
+    const errorMessage = error instanceof Error ? error.message : '解析简历失败，请检查 API 配置后重试。';
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : '解析简历失败，请检查 API 配置后重试。',
-      },
+      { error: errorMessage },
       { status: 500 }
     );
   }

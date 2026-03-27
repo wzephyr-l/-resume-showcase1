@@ -1,33 +1,42 @@
 import { Resume, ParsedResumeResponse } from './resume-schema';
 import { v4 as uuidv4 } from 'uuid';
 
-const SYSTEM_PROMPT = `你是一个专业的简历解析助手。请从下面的简历文本中提取结构化信息，并以有效的 JSON 格式返回。
+const SYSTEM_PROMPT = `你是一个专业的简历解析助手。请从简历文本中提取结构化信息，返回有效的 JSON。
 
-请严格按以下 JSON 格式返回（只返回 JSON，不要任何其他文字）：
+重要：返回完整闭合的 JSON，不要被截断！
+
+请严格按照以下 JSON 格式返回（只返回 JSON，不要任何其他文字）：
 {
   "personal": {
     "name": "姓名",
-    "email": "邮箱或 null",
-    "phone": "电话或 null",
-    "location": "所在地或 null",
-    "summary": "个人简介或 null"
+    "email": "邮箱或null",
+    "phone": "电话或null",
+    "location": "城市或null",
+    "summary": "个人简介或null"
   },
   "experiences": [
     {
       "company": "公司名称",
       "title": "职位名称",
       "startDate": "YYYY-MM",
-      "endDate": "YYYY-MM 或 至今",
-      "description": ["工作描述要点1", "工作描述要点2"]
+      "endDate": "YYYY-MM或至今",
+      "description": ["工作描述1","工作描述2","工作描述3"]
     }
   ],
-  "skills": ["技能1", "技能2"],
+  "skills": ["技能1","技能2","技能3","技能4","技能5"],
   "education": [
     {
       "school": "学校名称",
       "degree": "学历",
       "major": "专业",
-      "graduationYear": "毕业年份"
+      "graduationYear": "年份"
+    }
+  ],
+  "projects": [
+    {
+      "name": "项目名称",
+      "description": "项目描述",
+      "technologies": ["技术栈1", "技术栈2"]
     }
   ]
 }`;
@@ -114,7 +123,7 @@ function buildRequestBody(config: ApiConfig, rawText: string): any {
 
     return {
       model: config.model || 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
+      max_tokens: 8192, // 增加 token 限制，避免响应被截断
       messages: [
         {
           role: 'user',
@@ -126,7 +135,7 @@ function buildRequestBody(config: ApiConfig, rawText: string): any {
     // OpenAI API 格式
     return {
       model: config.model || 'gpt-4o-mini',
-      max_tokens: 4096,
+      max_tokens: 8192, // 增加 token 限制，避免响应被截断
       messages: [
         {
           role: 'system',
@@ -141,19 +150,29 @@ function buildRequestBody(config: ApiConfig, rawText: string): any {
     };
   } else {
     // 其他 OpenAI 兼容格式（智谱、阿里、硅基、Kimi 等）
+    const messages: any[] = [];
+
+    // Kimi 不支持 system 消息，需要合并到 user 消息中
+    if (url.includes('moonshot.cn')) {
+      messages.push({
+        role: 'user',
+        content: `${SYSTEM_PROMPT}\n\n请解析以下简历文本：\n\n${rawText}`,
+      });
+    } else {
+      messages.push({
+        role: 'system',
+        content: SYSTEM_PROMPT,
+      });
+      messages.push({
+        role: 'user',
+        content: `请解析以下简历文本：\n\n${rawText}`,
+      });
+    }
+
     const body: any = {
       model: config.model,
-      messages: [
-        {
-          role: 'system',
-          content: SYSTEM_PROMPT,
-        },
-        {
-          role: 'user',
-          content: `请解析以下简历文本：\n\n${rawText}`,
-        },
-      ],
-      max_tokens: 4096,
+      messages,
+      max_tokens: 8192, // 增加 token 限制，避免响应被截断
     };
 
     // Kimi 不支持 temperature 参数
@@ -199,32 +218,84 @@ export async function parseResumeWithCustomApi(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error?.message || errorData.message || `API 请求失败: ${response.status}`;
-      throw new Error(errorMessage);
+      const errorText = await response.text();
+      try {
+        const errorData = JSON.parse(errorText);
+        const errorMessage = errorData.error?.message || errorData.message || `API 请求失败: ${response.status}`;
+        throw new Error(errorMessage);
+      } catch {
+        throw new Error(`API 请求失败 (${response.status}): ${errorText.substring(0, 200)}`);
+      }
     }
 
     const data = await response.json();
+
+    // 调试日志
+    const responseStr = JSON.stringify(data);
+    console.log('[API] Response data:', responseStr.substring(0, 500));
+
+    // 检查是否有 API 错误
+    if (data.error) {
+      throw new Error(`API 错误: ${data.error.message || JSON.stringify(data.error)}`);
+    }
+
+    // 检查响应是否完整（JSON 被截断的情况）
+    if (!responseStr.endsWith('}') && !responseStr.endsWith('"]')) {
+      console.error('[API] Response appears to be truncated:', responseStr.substring(0, 300));
+    }
+
     const responseText = parseApiResponse(data, apiConfig);
 
+    console.log('[API] Parsed response text:', responseText?.substring(0, 200));
+
     if (!responseText) {
-      throw new Error('API 响应为空');
+      throw new Error(`API 响应为空或格式异常。原始响应：${responseStr.substring(0, 300)}`);
     }
 
     // 解析 JSON 响应
     let parsedData;
     try {
-      // 查找 JSON（有些 API 可能返回解释文本）
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        // 如果没找到 JSON，尝试直接解析整个响应
-        parsedData = JSON.parse(responseText);
-      } else {
-        parsedData = JSON.parse(jsonMatch[0]);
+      // 去除 Markdown 代码块标记 ```json 和 ```
+      let cleanText = responseText
+        .replace(/^```json\n?/, '')
+        .replace(/\n?```$/, '')
+        .replace(/^```\n?/, '')
+        .replace(/\n?```$/, '')
+        .trim();
+
+      // 尝试直接解析
+      try {
+        parsedData = JSON.parse(cleanText);
+      } catch (e1) {
+        // 尝试修复被截断的 JSON - 尝试补全缺失的括号
+        try {
+          let fixedText = cleanText;
+          // 计算缺失的闭合括号
+          const openBraces = (fixedText.match(/\{/g) || []).length;
+          const closeBraces = (fixedText.match(/\}/g) || []).length;
+          const openBrackets = (fixedText.match(/\[/g) || []).length;
+          const closeBrackets = (fixedText.match(/\]/g) || []).length;
+
+          // 添加缺失的闭合括号
+          for (let i = 0; i < openBraces - closeBraces; i++) fixedText += '}';
+          for (let i = 0; i < openBrackets - closeBrackets; i++) fixedText += ']';
+
+          console.log('[API] Trying to fix JSON, added braces/brackets');
+          parsedData = JSON.parse(fixedText);
+        } catch (e2) {
+          // 最后尝试：查找 JSON 块
+          const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            parsedData = JSON.parse(jsonMatch[0]);
+          } else {
+            throw new Error('无法找到有效的 JSON 内容');
+          }
+        }
       }
     } catch (err) {
-      console.error('Failed to parse API response:', responseText.substring(0, 500));
-      throw new Error(`简历结构解析失败：AI 返回的内容无法解析为 JSON。请确保模型能返回有效的 JSON 格式。返回内容：${responseText.substring(0, 200)}...`);
+      // 提供更详细的错误信息
+      const truncated = responseText.length > 500 ? responseText.substring(0, 500) + '...' : responseText;
+      throw new Error(`AI 响应解析失败。返回内容：${truncated}`);
     }
 
     // 创建 Resume 对象
@@ -257,6 +328,12 @@ export async function parseResumeWithCustomApi(
         degree: edu.degree || '',
         major: edu.major || '',
         graduationYear: edu.graduationYear || '',
+      })),
+
+      projects: (parsedData.projects || []).map((proj: any) => ({
+        name: proj.name || '',
+        description: proj.description || '',
+        technologies: Array.isArray(proj.technologies) ? proj.technologies : [],
       })),
 
       rawText,

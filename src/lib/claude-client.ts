@@ -6,47 +6,42 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-const SYSTEM_PROMPT = `You are an expert resume parser. Your task is to extract structured information from PDF resume text and convert it into a well-organized JSON format.
+const SYSTEM_PROMPT = `你是一个专业的简历解析助手。请从简历文本中提取结构化信息，返回有效的 JSON。
 
-Extract the following information:
-1. Personal Information: name, email, phone, location, professional summary
-2. Work Experience: company, job title, dates (start/end), descriptions/achievements
-3. Skills: technical and soft skills
-4. Education: school/university, degree, major/field, graduation year
+重要：返回完整闭合的 JSON，不要被截断！
 
-IMPORTANT RULES:
-- Return ONLY valid JSON, no other text
-- Dates should be in format "YYYY-MM" (e.g., "2020-01")
-- Use empty arrays/objects if information is not found
-- Preserve all details from the original text
-- Convert any date variations to the YYYY-MM format
-- For descriptions, split them into bullet points
-
-Return the JSON with this exact structure:
+请严格按照以下 JSON 格式返回（只返回 JSON，不要任何其他文字）：
 {
   "personal": {
-    "name": "string",
-    "email": "string or null",
-    "phone": "string or null",
-    "location": "string or null",
-    "summary": "string or null"
+    "name": "姓名",
+    "email": "邮箱或null",
+    "phone": "电话或null",
+    "location": "城市或null",
+    "summary": "个人简介或null"
   },
   "experiences": [
     {
-      "company": "string",
-      "title": "string",
+      "company": "公司名称",
+      "title": "职位名称",
       "startDate": "YYYY-MM",
-      "endDate": "YYYY-MM",
-      "description": ["string"]
+      "endDate": "YYYY-MM或至今",
+      "description": ["工作描述1","工作描述2","工作描述3"]
     }
   ],
-  "skills": ["string"],
+  "skills": ["技能1","技能2","技能3","技能4","技能5"],
   "education": [
     {
-      "school": "string",
-      "degree": "string",
-      "major": "string",
-      "graduationYear": "string"
+      "school": "学校名称",
+      "degree": "学历",
+      "major": "专业",
+      "graduationYear": "年份"
+    }
+  ],
+  "projects": [
+    {
+      "name": "项目名称",
+      "description": "项目描述",
+      "technologies": ["技术栈1", "技术栈2"]
     }
   ]
 }`;

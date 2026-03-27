@@ -36,7 +36,7 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
-export function truncateText(text: string, maxTokens: number = 100000): string {
+export function truncateText(text: string, maxTokens: number = 15000): string {
   // Rough estimation: 1 token ≈ 4 characters
   const maxChars = maxTokens * 4;
   if (text.length > maxChars) {
