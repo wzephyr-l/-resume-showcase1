@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 检查是否提供了 API 配置
     if (!apiConfig || !apiConfig.apiUrl || !apiConfig.apiKey) {
       return NextResponse.json(
         { error: 'Missing API configuration. Please configure your API first.' },
@@ -26,7 +25,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find the uploaded PDF file
     const filePath = path.join(UPLOAD_DIR, `${resumeId}.pdf`);
 
     if (!fs.existsSync(filePath)) {
@@ -36,10 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read the PDF file
     const pdfBuffer = fs.readFileSync(filePath);
-
-    // Extract text from PDF
     const rawText = await extractTextFromPDF(pdfBuffer);
 
     if (!rawText || rawText.length < 50) {
@@ -49,16 +44,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Truncate text to avoid exceeding API limits
     const truncatedText = truncateText(rawText);
-
-    // Parse resume using user's custom API
     const parsedResult = await parseResumeWithCustomApi(truncatedText, fileName, apiConfig, resumeId);
 
-    // Save resume to database
     saveResume(parsedResult.resume);
-
-    // Delete the temporary PDF file
     fs.unlinkSync(filePath);
 
     return NextResponse.json({

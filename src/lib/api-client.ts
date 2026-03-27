@@ -53,7 +53,6 @@ function buildApiHeaders(config: ApiConfig): Record<string, string> {
     'Content-Type': 'application/json',
   };
 
-  // 根据 URL 特征判断 API 类型
   const url = config.apiUrl.toLowerCase();
 
   // 火山引擎/字节方舟 - 使用 Bearer Token
@@ -117,13 +116,11 @@ function buildRequestBody(config: ApiConfig, rawText: string): any {
   const url = config.apiUrl.toLowerCase();
 
   if (isAnthropicFormat(url)) {
-    // Anthropic 兼容格式（Claude Code 使用的 API）
-    // 注意：火山引擎等兼容 API 可能不支持 system 消息，我们把系统提示放在 user 消息中
     const userContent = `你是简历解析专家。${SYSTEM_PROMPT}\n\n请解析以下简历文本：\n\n${rawText}`;
 
     return {
       model: config.model || 'claude-sonnet-4-20250514',
-      max_tokens: 8192, // 增加 token 限制，避免响应被截断
+      max_tokens: 8192,
       messages: [
         {
           role: 'user',
@@ -132,10 +129,9 @@ function buildRequestBody(config: ApiConfig, rawText: string): any {
       ],
     };
   } else if (url.includes('openai.com')) {
-    // OpenAI API 格式
     return {
       model: config.model || 'gpt-4o-mini',
-      max_tokens: 8192, // 增加 token 限制，避免响应被截断
+      max_tokens: 8192,
       messages: [
         {
           role: 'system',
@@ -149,10 +145,8 @@ function buildRequestBody(config: ApiConfig, rawText: string): any {
       temperature: 0.1,
     };
   } else {
-    // 其他 OpenAI 兼容格式（智谱、阿里、硅基、Kimi 等）
     const messages: any[] = [];
 
-    // Kimi 不支持 system 消息，需要合并到 user 消息中
     if (url.includes('moonshot.cn')) {
       messages.push({
         role: 'user',
@@ -172,10 +166,9 @@ function buildRequestBody(config: ApiConfig, rawText: string): any {
     const body: any = {
       model: config.model,
       messages,
-      max_tokens: 8192, // 增加 token 限制，避免响应被截断
+      max_tokens: 8192,
     };
 
-    // Kimi 不支持 temperature 参数
     if (!url.includes('moonshot.cn')) {
       body.temperature = 0.1;
     }
@@ -189,14 +182,11 @@ function parseApiResponse(data: any, config: ApiConfig): any {
   const url = config.apiUrl.toLowerCase();
 
   if (isAnthropicFormat(url)) {
-    // Anthropic 兼容格式响应
-    // 处理 content 是数组还是字符串的情况
     if (Array.isArray(data.content)) {
       return data.content.find((c: any) => c.type === 'text')?.text || '';
     }
     return data.content || '';
   } else {
-    // OpenAI 兼容格式
     return data.choices?.[0]?.message?.content || '';
   }
 }
@@ -230,18 +220,11 @@ export async function parseResumeWithCustomApi(
 
     const data = await response.json();
 
-    // 调试日志
     const responseStr = JSON.stringify(data);
     console.log('[API] Response data:', responseStr.substring(0, 500));
 
-    // 检查是否有 API 错误
     if (data.error) {
       throw new Error(`API 错误: ${data.error.message || JSON.stringify(data.error)}`);
-    }
-
-    // 检查响应是否完整（JSON 被截断的情况）
-    if (!responseStr.endsWith('}') && !responseStr.endsWith('"]')) {
-      console.error('[API] Response appears to be truncated:', responseStr.substring(0, 300));
     }
 
     const responseText = parseApiResponse(data, apiConfig);
@@ -255,7 +238,6 @@ export async function parseResumeWithCustomApi(
     // 解析 JSON 响应
     let parsedData;
     try {
-      // 去除 Markdown 代码块标记 ```json 和 ```
       let cleanText = responseText
         .replace(/^```json\n?/, '')
         .replace(/\n?```$/, '')
@@ -263,27 +245,21 @@ export async function parseResumeWithCustomApi(
         .replace(/\n?```$/, '')
         .trim();
 
-      // 尝试直接解析
       try {
         parsedData = JSON.parse(cleanText);
       } catch (e1) {
-        // 尝试修复被截断的 JSON - 尝试补全缺失的括号
         try {
           let fixedText = cleanText;
-          // 计算缺失的闭合括号
           const openBraces = (fixedText.match(/\{/g) || []).length;
           const closeBraces = (fixedText.match(/\}/g) || []).length;
           const openBrackets = (fixedText.match(/\[/g) || []).length;
           const closeBrackets = (fixedText.match(/\]/g) || []).length;
 
-          // 添加缺失的闭合括号
           for (let i = 0; i < openBraces - closeBraces; i++) fixedText += '}';
           for (let i = 0; i < openBrackets - closeBrackets; i++) fixedText += ']';
 
-          console.log('[API] Trying to fix JSON, added braces/brackets');
           parsedData = JSON.parse(fixedText);
         } catch (e2) {
-          // 最后尝试：查找 JSON 块
           const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             parsedData = JSON.parse(jsonMatch[0]);
@@ -293,12 +269,10 @@ export async function parseResumeWithCustomApi(
         }
       }
     } catch (err) {
-      // 提供更详细的错误信息
       const truncated = responseText.length > 500 ? responseText.substring(0, 500) + '...' : responseText;
       throw new Error(`AI 响应解析失败。返回内容：${truncated}`);
     }
 
-    // 创建 Resume 对象
     const resume: Resume = {
       id: resumeId || uuidv4(),
       fileName,
@@ -350,12 +324,9 @@ export async function parseResumeWithCustomApi(
   }
 }
 
-// 测试 API 连接
 export async function testApiConnection(config: ApiConfig): Promise<{ success: boolean; message: string }> {
   try {
     const headers = buildApiHeaders(config);
-
-    // 发送一个简单的测试请求
     const body = buildRequestBody(config, '你好，请回复 "OK"');
 
     const response = await fetch(config.apiUrl, {
